@@ -24,7 +24,17 @@ export default function Form() {
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    console.log("submit");
+
+    // Vérifie si tous les champs sont remplis
+    const allFieldsFilled =
+      name &&
+      apiCode &&
+      sector &&
+      minExperience &&
+      maxExperience &&
+      minRevenue &&
+      maxRevenue;
+    if (allFieldsFilled) {
     const currentConfiguration: Configuration = {
       name: "",
       apiCode,
@@ -49,7 +59,10 @@ export default function Form() {
     setMinRevenue("");
     setMaxRevenue("");
 
-    window.location.href = "/results";
+    window.location.href = "/results";  
+    }else{
+      alert("Veuillez remplir tous les champs");
+    }
   };
 
   return (

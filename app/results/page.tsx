@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faArrowsUpDown } from "@fortawesome/free-solid-svg-icons";
 import { Button } from "@/components/ui/button";
 
+// Interface pour les résultats de recherche. Inclut les informations clés sur les sociétés.
 interface Result {
   societe: string;
   statuts: string;
@@ -14,6 +15,7 @@ interface Result {
   gerant: string;
   secteurActivite: string;
 }
+// Configuration utilisée pour le filtrage des résultats. Inclut les critères de filtrage.
 interface Configuration {
   name: string;
   apiCode: string;
@@ -25,6 +27,7 @@ interface Configuration {
   createdAt?: string;
 }
 
+// TODO: Remplacer mockData par des appels API réels
 const data = mockData;
 
 const ResultsPage: React.FC = () => {
@@ -58,52 +61,38 @@ const ResultsPage: React.FC = () => {
     );
   };
 
+  // Récupère la configuration actuelle de sessionStorage au chargement initial et vérifie également, à chaque mise à jour de currentConfiguration, si elle est enregistrée dans localStorage.
   useEffect(() => {
-    const tempConfig = sessionStorage.getItem("currentConfiguration");
-    if (tempConfig) {
-      const configuration = JSON.parse(tempConfig);
-      setCurrentConfiguration(configuration);
-    }
-  }, []);
+    let configuration = currentConfiguration;
 
-  useEffect(() => {
-    const tempConfig = sessionStorage.getItem("currentConfiguration");
-    if (tempConfig) {
-      const configuration = JSON.parse(tempConfig);
-      setCurrentConfiguration(configuration);
+    if (!configuration) {
+      const tempConfig = sessionStorage.getItem("currentConfiguration");
+      if (tempConfig) {
+        configuration = JSON.parse(tempConfig);
+        setCurrentConfiguration(configuration);
+      }
+    }
+
+    if (configuration) {
       const savedConfigs = JSON.parse(
         localStorage.getItem("savedConfigurations") ?? "[]"
       );
-      const isSaved = savedConfigs.some(
-        (config: Configuration) =>
-          JSON.stringify(config) === JSON.stringify(configuration)
-      );
+      const isSaved = isConfigurationSaved(configuration, savedConfigs);
       setIsFilterSaved(isSaved);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (currentConfiguration) {
-      const savedConfigs = JSON.parse(
-        localStorage.getItem("savedConfigurations") ?? "[]"
-      );
-      setIsFilterSaved(
-        isConfigurationSaved(currentConfiguration, savedConfigs)
-      );
     }
   }, [currentConfiguration]);
 
+  // Charge les statuts enregistrés dans localStorage au chargement initial du composant.
   useEffect(() => {
     const savedStatuts = JSON.parse(localStorage.getItem("statuts") ?? "{}");
     setStatuts(savedStatuts);
   }, []);
 
+  // Fonction pour enregistrer la configuration actuelle dans localStorage
   const saveConfiguration = () => {
     const tempConfig = sessionStorage.getItem("currentConfiguration");
     if (tempConfig && configurationName) {
       const configuration = JSON.parse(tempConfig);
-
-      // Ajout de la date de création
       const newConfiguration = {
         ...configuration,
         name: configurationName,
@@ -117,12 +106,10 @@ const ResultsPage: React.FC = () => {
       localStorage.setItem("savedConfigurations", JSON.stringify(savedConfigs));
 
       setIsFilterSaved(true);
-
-      // Supprimer la configuration temporaire de sessionStorage
       sessionStorage.removeItem("currentConfiguration");
     }
   };
-
+  // Fonction pour gérer le changement de date de rappel.
   const handleRappelDateChange = (societe: string, newDate: string) => {
     setRappelDates((prevDates) => ({
       ...prevDates,
@@ -147,6 +134,7 @@ const ResultsPage: React.FC = () => {
     setSortedData(data);
   }, []);
 
+  // Fonction pour trier les données en fonction de la clé et de la direction de tri.
   const sortNumber = (
     a: Result,
     b: Result,
@@ -157,7 +145,7 @@ const ResultsPage: React.FC = () => {
     const numB = parseFloat(b[key]);
     return direction === "ascending" ? numA - numB : numB - numA;
   };
-
+  // Fonction pour trier les données en fonction de la clé et de la direction de tri.
   const sortString = (
     a: Result,
     b: Result,
@@ -173,6 +161,7 @@ const ResultsPage: React.FC = () => {
     return 0;
   };
 
+  // Fonction pour trier les données en fonction de la clé et de la direction de tri.
   const sortData = (key: keyof Result) => {
     const direction =
       sortConfig.key === key && sortConfig.direction === "ascending"
@@ -188,6 +177,7 @@ const ResultsPage: React.FC = () => {
     setSortedData(sorted);
   };
 
+  // Fonction pour gérer le changement de statuts. À l'avenir, cela pourrait inclure un appel API.
   const handleStatutChange = (
     id: string,
     key: string,
@@ -201,11 +191,10 @@ const ResultsPage: React.FC = () => {
       },
     };
     setStatuts(newStatuts);
-
-    // Enregistrement dans localStorage avec l'ID de la société
     localStorage.setItem("statuts", JSON.stringify(newStatuts));
   };
 
+  // Logique de filtrage des données selon le statut sélectionné
   const filterData = useCallback(() => {
     switch (statusFilter) {
       case "appelsDesc":
@@ -242,16 +231,18 @@ const ResultsPage: React.FC = () => {
     }
   }, [statusFilter, statuts, rappelDates]);
 
+  // Met à jour les données triées à chaque fois que le filtre de statut change
   useEffect(() => {
     setSortedData(filterData());
   }, [filterData]);
 
+  //vérifie si la date est passée
   const isDatePassed = (date: string) => {
     const today = new Date();
     const inputDate = new Date(date);
     return inputDate < today;
   };
-
+  // Génère la classe CSS appropriée pour les statuts en fonction de leur valeur
   const determineClass = (value: string, type: string) => {
     if ((type === "interesse" || type === "joignable") && value === "oui") {
       return "bg-green-500";
@@ -265,6 +256,7 @@ const ResultsPage: React.FC = () => {
     }
   };
 
+  // Génère la classe CSS appropriée pour les dates de rappel en fonction de si elles sont passées ou non
   const getInputDateClass = (societe: string) => {
     const rappelDate = rappelDates[societe];
     if (rappelDate) {
