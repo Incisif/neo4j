@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { mockData } from "./mockData";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faArrowsUpDown } from "@fortawesome/free-solid-svg-icons";
@@ -41,6 +41,7 @@ const ResultsPage: React.FC = () => {
     useState<Configuration | null>(null);
   const [configurationName, setConfigurationName] = useState<string>("");
   const [isFilterSaved, setIsFilterSaved] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("");
 
   const isConfigurationSaved = (
     config: Configuration,
@@ -56,7 +57,7 @@ const ResultsPage: React.FC = () => {
         savedConfig.maxRevenue === config.maxRevenue
     );
   };
-  
+
   useEffect(() => {
     const tempConfig = sessionStorage.getItem("currentConfiguration");
     if (tempConfig) {
@@ -92,6 +93,11 @@ const ResultsPage: React.FC = () => {
     }
   }, [currentConfiguration]);
 
+  useEffect(() => {
+    const savedStatuts = JSON.parse(localStorage.getItem("statuts") ?? "{}");
+    setStatuts(savedStatuts);
+  }, []);
+
   const saveConfiguration = () => {
     const tempConfig = sessionStorage.getItem("currentConfiguration");
     if (tempConfig && configurationName) {
@@ -101,7 +107,7 @@ const ResultsPage: React.FC = () => {
       const newConfiguration = {
         ...configuration,
         name: configurationName,
-        createdAt: new Date().toISOString(), // Ajout de la date et l'heure actuelles
+        createdAt: new Date().toISOString(),
       };
 
       const savedConfigs = JSON.parse(
@@ -182,14 +188,68 @@ const ResultsPage: React.FC = () => {
     setSortedData(sorted);
   };
 
-  const handleStatutChange = (id: string, key: string, value: any) => {
-    setStatuts((prevStatuts) => ({
-      ...prevStatuts,
+  const handleStatutChange = (
+    id: string,
+    key: string,
+    value: string | boolean
+  ) => {
+    const newStatuts = {
+      ...statuts,
       [id]: {
-        ...prevStatuts[id],
+        ...statuts[id],
         [key]: value,
       },
-    }));
+    };
+    setStatuts(newStatuts);
+
+    // Enregistrement dans localStorage avec l'ID de la société
+    localStorage.setItem("statuts", JSON.stringify(newStatuts));
+  };
+
+  const filterData = useCallback(() => {
+    switch (statusFilter) {
+      case "appelsDesc":
+        return [...data].sort(
+          (a, b) =>
+            (statuts[b.societe]?.appels || 0) -
+            (statuts[a.societe]?.appels || 0)
+        );
+      case "appelsAsc":
+        return [...data].sort(
+          (a, b) =>
+            (statuts[a.societe]?.appels || 0) -
+            (statuts[b.societe]?.appels || 0)
+        );
+      case "interesse":
+        return data.filter(
+          (item) => statuts[item.societe]?.interesse === "oui"
+        );
+      case "joignable":
+        return data.filter(
+          (item) => statuts[item.societe]?.joignable === "oui"
+        );
+      case "aRappeler":
+        // Tri par les dates les plus proches de la date actuelle
+        return [...data]
+          .filter((item) => rappelDates[item.societe])
+          .sort(
+            (a, b) =>
+              new Date(rappelDates[a.societe]).getTime() -
+              new Date(rappelDates[b.societe]).getTime()
+          );
+      default:
+        return data;
+    }
+  }, [statusFilter, statuts, rappelDates]);
+
+  useEffect(() => {
+    setSortedData(filterData());
+  }, [filterData]);
+
+  const isDatePassed = (date: string) => {
+    const today = new Date();
+    const inputDate = new Date(date);
+    return inputDate < today;
   };
 
   const determineClass = (value: string, type: string) => {
@@ -203,6 +263,16 @@ const ResultsPage: React.FC = () => {
     } else {
       return "";
     }
+  };
+
+  const getInputDateClass = (societe: string) => {
+    const rappelDate = rappelDates[societe];
+    if (rappelDate) {
+      return isDatePassed(rappelDate)
+        ? "form-input block w-full flex-1 h-[22px] py-1 border  bg-red-500 text-white shadow-sm focus:outline-none focus:ring-indigo-500"
+        : "form-input block w-full flex-1 h-[22px] py-1 border bg-purple-500 text-white shadow-sm focus:outline-none focus:ring-indigo-500";
+    }
+    return "form-input block w-full flex-1 h-[22px] py-1 border border-gray-300 shadow-sm focus:outline-none focus:ring-indigo-500";
   };
 
   return (
@@ -273,8 +343,20 @@ const ResultsPage: React.FC = () => {
                 onClick={() => sortData("societe")}
               />
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider flex justify-between">
               Statuts
+              <select
+                className="inline-block ml-2 border border-gray-300  shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="">Filtrer par</option>
+                <option value="appelsDesc">Appels Descendant</option>
+                <option value="appelsAsc">Appels Ascendant</option>
+                <option value="interesse">Intéressé</option>
+                <option value="joignable">Joignable</option>
+                <option value="aRappeler">À Rappeler</option>
+              </select>
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Notes
@@ -325,7 +407,7 @@ const ResultsPage: React.FC = () => {
                             e.target.value
                           )
                         }
-                        className="flex-1"
+                        className="flex-1 border-solid border-1 border-gray-300"
                       >
                         {[...Array(11).keys()].map((num) => (
                           <option key={num} value={num}>
@@ -358,9 +440,7 @@ const ResultsPage: React.FC = () => {
                           "interesse"
                         )} flex-1`}
                       >
-                        <option value="" disabled>
-                          option
-                        </option>
+                        <option value="">option</option>
                         <option value="oui">Oui</option>
                         <option value="non">Non</option>
                       </select>
@@ -389,9 +469,7 @@ const ResultsPage: React.FC = () => {
                           "joignable"
                         )} flex-1`}
                       >
-                        <option value="" disabled>
-                          option
-                        </option>
+                        <option value="">option</option>
                         <option value="oui">Oui</option>
                         <option value="non">Non</option>
                       </select>
@@ -412,11 +490,7 @@ const ResultsPage: React.FC = () => {
                         onChange={(e) =>
                           handleRappelDateChange(item.societe, e.target.value)
                         }
-                        className={`form-input block w-full flex-1 h-[22px] py-1 border border-gray-300  shadow-sm focus:outline-none focus:ring-indigo-500 ${
-                          rappelDates[item.societe]
-                            ? "bg-purple-500 text-white"
-                            : ""
-                        }`}
+                        className={getInputDateClass(item.societe)}
                       />
                     </div>
                   </div>
