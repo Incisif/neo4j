@@ -22,6 +22,7 @@ interface Configuration {
   maxExperience: string;
   minRevenue: string;
   maxRevenue: string;
+  createdAt?: string;
 }
 
 const data = mockData;
@@ -55,12 +56,12 @@ const ResultsPage: React.FC = () => {
         savedConfig.maxRevenue === config.maxRevenue
     );
   };
+  
   useEffect(() => {
     const tempConfig = sessionStorage.getItem("currentConfiguration");
     if (tempConfig) {
       const configuration = JSON.parse(tempConfig);
       setCurrentConfiguration(configuration);
-
     }
   }, []);
 
@@ -96,10 +97,17 @@ const ResultsPage: React.FC = () => {
     if (tempConfig && configurationName) {
       const configuration = JSON.parse(tempConfig);
 
+      // Ajout de la date de création
+      const newConfiguration = {
+        ...configuration,
+        name: configurationName,
+        createdAt: new Date().toISOString(), // Ajout de la date et l'heure actuelles
+      };
+
       const savedConfigs = JSON.parse(
         localStorage.getItem("savedConfigurations") ?? "[]"
       );
-      savedConfigs.push({ ...configuration, name: configurationName });
+      savedConfigs.push(newConfiguration);
       localStorage.setItem("savedConfigurations", JSON.stringify(savedConfigs));
 
       setIsFilterSaved(true);
